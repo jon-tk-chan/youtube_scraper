@@ -1,13 +1,8 @@
-# from apiclient.discovery import build
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
-# from apiclient.errors import HttpError
-# from oauth2client.tools import argparser
-# import pandas as pd
-# import matplotlib.pyplot as plt
-# # import ytcreds
 import json
 import credentials
+
 DEVELOPER_KEY = credentials.API_KEY
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
@@ -18,27 +13,17 @@ total_videos = 50
 
 def get_video_metadata(query="Why I quit my job", results_total=250):
     """Returns a list of results_total number of video responses
-        Each item returned is from youtube.search().list(q=query)
-        Section 1 - function iterates through pages of responses (max number per page = 50)
-        Section 2 - function iterates through pages of responses and gets relevant fields: 
-            videoId, videoTitle, channelId, publishedAt
-            
+        Each item returned is from youtube.search().list(q=query)      
         input:
             query: str
             results total: int of number of videos to do
     """
-    
-    ##SECTION 1 - api call to get lists of functions
     responses_list =[] #list of pages of responses
     results_total += 1
     for i in range(0,results_total,50):
-        # if i % 100 == 0:
-        #     print(f"VIDEOS PROCESSED: {i}")
         if i ==0:
             next_token=None
             prev_token = None
-            
-        #Call youtube.search() command using default values - getting id and snippet parts of youtube info
         search_response = youtube.search().list(
             q=query, type="video", pageToken=next_token,
             order = 'relevance',part="id,snippet",maxResults=results_total,
@@ -54,7 +39,6 @@ def get_video_metadata(query="Why I quit my job", results_total=250):
             prev_token=search_response['prevPageToken']
         else:
             prev_token=None
-    ##SECTION 2 - create list of ids to iterate through - remove the layer of lists given for individual queries of youtube.search()
     video_list = []
     for response in responses_list:
         videos_list = response['items']
@@ -71,6 +55,7 @@ def get_video_metadata(query="Why I quit my job", results_total=250):
             video_list.append(video_dict)
     # print(f"COMPLETED - NUMBER OF VIDEO RESPONSES: {len(video_list)}")
     return video_list
+
 def get_video_stats(video_list):
     """Return a dictionary of lists containing the info for each video in video_list"""
     title = []
@@ -90,8 +75,6 @@ def get_video_stats(video_list):
     descriptions=[]
     i = 0
     for video in video_list:
-        # if i % 100 == 0:
-        #     print("VIDEOS PROCESSED: ", i)
         videoId.append(video['videoId'])
         title.append(video['videoTitle'])
         publishedAt.append(video['publishedAt'])
@@ -129,9 +112,7 @@ def get_video_stats(video_list):
             descriptions.append(stats['items'][0]['snippet']['description'])
         else:
             tags.append("No Description")
-        #a given video is equivelant to stats['items'][0]
         i += 1
-
     #write JSON to store video information for all
     youtube_dict = {'tags':tags,'channelId': channelId,'channelTitle': channelTitle,
                     'categoryId':categoryId,'publishedAt': publishedAt,'title':title,'videoId':videoId,
@@ -144,21 +125,21 @@ def get_video_stats(video_list):
 def add_youtube_transcripts(youtube_dict):
     """return a copy of youtube_dict with list of transcript strings and 
     list of raw transcripts (list of list of cleaned strings)
+
+    Note: some youtube videos to not have transcript available - write 'None' type when YoutubeTranscriptApi cannot access
     """
     final_dict = youtube_dict.copy()
     transcripts_sents = []
     transcripts_strings = []
     transcripts_parsed = []
     for i, video_id in enumerate(youtube_dict['videoId']):
-#         print(video_id)
         transcript_sentlist = []
-        #use YouTubeTranscriptApi.get_transcript() and write "NONE" if not
+        #use YouTubeTranscriptApi.get_transcript() and write "NONE" if no transcripts exist
         try:
             eng_transcript = YouTubeTranscriptApi.get_transcript(video_id,languages=['en'])
             transcript_sentlist = [str(x['text']).replace("\xa0", "") for x in eng_transcript]
             transcript_joined = " ".join(transcript_sentlist)
         except:
-            # print("NONE")
             transtript_sentlist = None
             transcript_joined = None
         transcripts_sents.append(transcript_sentlist)
@@ -167,7 +148,6 @@ def add_youtube_transcripts(youtube_dict):
     final_dict['transcript_strings'] = transcripts_strings
     # print(f"DONE - NUMBER OF VIDEOS PROCESSED: {len(final_dict['transcript_strings'])}")
     return final_dict
-
 
 def main():
     """main executable function - calls scraper functions in order, saves to predefined filepath"""
@@ -194,5 +174,6 @@ def main():
             json.dump(final_dict, f, ensure_ascii=False, indent=4)
     except:
         print("issue - add_youtube_transcripts()")
+
 if __name__ == "__main__":
     main()
